@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KFI Driver OT Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<style>
+:root {
+  --bg: #f0f2f7;
+  --surface: #ffffff;
+  --surface2: #f5f7fb;
+  --border: #e2e6f0;
+  --text: #1a1f36;
+  --muted: #8892aa;
+  --accent: #1a5fa8;
+  --teal: #0891b2;
+  --orange: #ea6c00;
+  --green: #16a34a;
+  --red: #dc2626;
+  --yellow: #b45309;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* SETUP SCREEN */
+#setup-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.setup-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 620px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+.setup-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+.setup-logo span { color: var(--text); }
+.setup-sub { font-size: 0.72rem; color: var(--muted); margin-bottom: 2rem; }
+.form-group { margin-bottom: 1.2rem; }
+.form-group label { display: block; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+input[type="text"], input[type="password"], input[type="date"] {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  padding: 10px 14px;
+  border-radius: 6px;
+  outline: none;
+}
+input:focus { border-color: var(--accent); }
+.date-row { display: flex; gap: 1rem; }
+.date-row .form-group { flex: 1; }
+.btn-primary {
+  width: 100%;
+  background: var(--accent);
+  color: #fff;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  transition: opacity 0.15s;
+  margin-top: 0.5rem;
+}
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.setup-status { font-size: 0.72rem; color: var(--muted); margin-top: 1rem; min-height: 1.2rem; }
+.setup-status.ok { color: var(--green); }
+.setup-status.err { color: var(--red); }
+
+/* FILE UPLOAD */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  margin-bottom: 0.5rem;
+}
+.upload-area:hover, .upload-area.over { border-color: var(--accent); }
+.upload-area p { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+.upload-area strong { font-family: 'Syne', sans-serif; font-size: 0.85rem; color: var(--text); }
+.file-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.file-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 0.65rem; color: var(--teal); }
+#file-input { display: none; }
+
+/* MAIN DASHBOARD */
+#dashboard { display: none; }
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; color: var(--accent); letter-spacing: 0.04em; }
+.logo span { color: var(--text); }
+.header-right { display: flex; align-items: center; gap: 1rem; }
+.week-badge { font-size: 0.65rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; }
+.btn-sm { font-family: 'DM Mono', monospace; font-size: 0.65rem; padding: 5px 12px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+/* NAV */
+nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 1.5rem;
+}
+nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  padding: 11px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.nav-btn.summary-nav { color: var(--teal); }
+.nav-btn.summary-nav.active { border-bottom-color: var(--teal); }
+.nav-btn.cust-nav { color: var(--yellow); }
+.nav-btn.cust-nav.active { border-bottom-color: var(--yellow); }
+.nav-group-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px 0 16px;
+  font-size: 0.55rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  margin-left: 6px;
+  white-space: nowrap;
+  height: 100%;
+}
+
+/* SIDEBAR LAYOUT */
+.dashboard-body { display: flex; height: calc(100vh - 96px); overflow: hidden; }
+#sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-inner {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  padding: 0.5rem 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.sidebar-inner::-webkit-scrollbar { width: 4px; }
+.sidebar-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.sidebar-group-label {
+  font-size: 0.62rem;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 10px 14px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.sidebar-group-label:first-child { border-top: none; margin-top: 0; }
+.sidebar-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 14px 7px 20px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.12s;
+}
+.sidebar-btn:hover { background: var(--surface2); color: var(--accent); }
+.sidebar-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(26,95,168,0.08); font-weight: 500; }
+.sidebar-btn.ot { color: var(--text); }
+.sidebar-btn.ot.active { border-left-color: var(--accent); background: rgba(26,95,168,0.08); }
+.sidebar-btn.reviewed { color: #16a34a; border-left-color: #16a34a; }
+.sidebar-btn.reviewed.active { background: rgba(22,163,74,0.08); border-left-color: #16a34a; }
+main { flex: 1; overflow-y: auto; padding: 2rem; max-width: none; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* STAT CARDS */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.stat-label { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-family: 'Syne', sans-serif; font-size: 1.7rem; font-weight: 700; }
+.v-accent { color: var(--accent); }
+.v-teal { color: var(--teal); }
+.v-orange { color: var(--orange); }
+.v-green { color: var(--green); }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.73rem; }
+th { background: var(--surface2); color: var(--muted); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:hover td { background: var(--surface2); }
+tr.ot-row td { background: rgba(234,108,0,0.05); }
+tr.ot-row:hover td { background: rgba(234,108,0,0.1) !important; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ot-val { color: var(--orange); font-weight: 500; }
+.rt-val { color: var(--green); }
+.driver-val { color: var(--accent); }
+.cust-val { color: var(--teal); }
+
+/* BADGES */
+.badge { display: inline-block; font-size: 0.58rem; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 500; }
+.badge-driver { background: rgba(37,99,235,0.1); color: var(--accent); border: 1px solid rgba(37,99,235,0.25); }
+.badge-customer { background: rgba(8,145,178,0.1); color: var(--teal); border: 1px solid rgba(8,145,178,0.25); }
+.badge-ot { background: rgba(234,108,0,0.1); color: var(--orange); border: 1px solid rgba(234,108,0,0.25); }
+.badge-rt { background: rgba(22,163,74,0.1); color: var(--green); border: 1px solid rgba(22,163,74,0.25); }
+
+/* DRIVER PAGE */
+.driver-header { margin-bottom: 1.5rem; }
+.driver-name { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; }
+.driver-meta { font-size: 0.68rem; color: var(--muted); margin-top: 4px; }
+.summary-boxes { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.sbox { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.2rem; min-width: 110px; }
+.sbox-label { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+.sbox-value { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; }
+.legend { display: flex; gap: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* BAR */
+.bar-wrap { display: flex; align-items: center; gap: 8px; }
+.bar { height: 5px; border-radius: 3px; background: var(--border); flex: 1; min-width: 60px; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.bar-num { font-size: 0.68rem; color: var(--muted); min-width: 36px; text-align: right; }
+
+/* CUSTOMER CARDS */
+.cust-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.cust-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.cust-card-hdr { padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.cust-card-name { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; }
+.cust-card-body { padding: 1rem 1.2rem; }
+.cust-stat-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.6rem; margin-bottom: 0.8rem; }
+.cust-stat { }
+.cust-stat .label { font-size: 0.56rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.cust-stat .val { font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700; }
+.cust-drivers { font-size: 0.65rem; color: var(--muted); }
+
+/* LOADING */
+.loading { text-align: center; padding: 3rem; color: var(--muted); font-size: 0.8rem; }
+
+/* API STATUS */
+.api-status { display: flex; align-items: center; gap: 6px; font-size: 0.65rem; }
+.api-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+.api-dot.off { background: var(--muted); animation: none; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* UPLOAD STATUS */
+.upload-status { font-size: 0.68rem; color: var(--teal); margin-top: 6px; }
+
+/* SECTION TITLE */
+.section-title { font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem; }
+.section-title .sub { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; font-weight: 400; display: block; margin-top: 2px; }
+
+/* DRIVER LINK */
+.driver-link { color: var(--accent); text-decoration: none; cursor: pointer; }
+.driver-link:hover { text-decoration: underline; }
+
+/* SEP */
+.sep { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+/* SUMMARY & CHECKS TABLES */
+.summary-checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+@media (max-width: 700px) { .summary-checks-grid { grid-template-columns: 1fr; } }
+.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.sum-card-hdr { padding: 10px 14px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.85rem; color: #fff; }
+.sum-card-hdr.green { background: #16a34a; }
+.sum-card-hdr.blue { background: #2563eb; }
+.sum-card table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.sum-card th { padding: 7px 12px; font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.sum-card th.green-hdr { background: #f0fdf4; color: #166534; border-bottom: 1px solid #bbf7d0; }
+.sum-card th.blue-hdr { background: #eff6ff; color: #1e40af; border-bottom: 1px solid #bfdbfe; }
+.editable-time { cursor: pointer; position: relative; }
+.editable-time:hover { background: #eff6ff; }
+.editable-time:hover .edit-hint { opacity: 1; }
+.edit-hint { font-size: 0.65rem; color: var(--accent); margin-left: 4px; opacity: 0; transition: opacity 0.15s; }
+.edit-hint::before { content: '✎'; }
+.copy-hint { font-size: 0.62rem; color: var(--muted); margin-top: 6px; text-align: right; font-family: 'DM Mono', monospace; font-style: italic; }
+.time-edit-input { font-family: 'DM Mono', monospace; font-size: 0.73rem; padding: 3px 6px; border: 2px solid var(--accent); border-radius: 4px; background: #fff; color: var(--text); outline: none; width: 160px; }
+.sum-card td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.sum-card td.val { 
+  text-align: right; 
+  font-variant-numeric: tabular-nums; 
+  font-weight: 600;
+  cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.sum-card td.val:hover {
+  background: #e8f0fe;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.sum-card td.val.no-select { cursor: default; }
+.sum-card td.val.no-select:hover { background: none; outline: none; }
+.sum-card td.val.copyable { cursor: pointer; }
+.sum-card td.val.copyable:hover { background: #e8f0fe; outline: 2px solid var(--accent); outline-offset: -2px; }
+.sum-card td.val.selected { background: #bfdbfe !important; outline: 2px solid var(--accent); outline-offset: -2px; }
+.check-ok { color: var(--green); }
+.check-warn { color: var(--orange); font-weight: 700; }
+
+@media print {
+  header, nav, #sidebar, .btn-sm, .btn-primary, #refresh-panel, #manual-panel,
+  .edit-hint, .copy-hint, .bar-wrap, .legend { display: none !important; }
+  body { background: #fff !important; color: #000 !important; font-size: 10pt; }
+  .dashboard-body { display: block !important; }
+  main { padding: 0 !important; overflow: visible !important; }
+  .page { display: block !important; page-break-after: always; }
+  .page:last-child { page-break-after: avoid; }
+  .stat-card, .sbox, .sum-card, .cust-card { border: 1px solid #ccc !important; box-shadow: none !important; }
+  .sum-card-hdr.green { background: #16a34a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sum-card-hdr.blue { background: #2563eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .driver-name { font-size: 16pt !important; }
+  .summary-checks-grid { grid-template-columns: 1fr 1fr !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+  #punch-alerts { display: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div style="text-align:center;margin-bottom:1.5rem;"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAA6AH4DASIAAhEBAxEB/8QAHAABAAICAwEAAAAAAAAAAAAAAAYHBQgBAgQD/8QANBAAAQMEAAQFAgUEAgMAAAAAAQIDBQAEBhEHEiExExRBUWEIIhUycYGRIzNCUhZicoKS/8QAGQEBAQEBAQEAAAAAAAAAAAAAAAECAwQF/8QAJREAAgIBAwMEAwAAAAAAAAAAAAECEQMSITEEE0EUUXHBYbHR/9oADAMBAAIRAxEAPwDcum6j3EHLYjCcYusgmnii2YACUJ6rdWfyoSPUmtWF8buM+ezjzOCRy7ZhB6M2lol8oHoXHFggE/sK74unnlVrZHOeVQdG5FK1lipT6q43kuruHtJNpPVTL/lQSP8A0Uk/xU8xHjQ2b1mI4hY9f4bJPK5WnLtB8o8f+rpAAP69PmkunkuGn8EWVPnYt6lcIWlaQpKgoEbBHrXNcDqKUpugFKUoBSm6UApSlAKUpQGtX1lOMS05i+KPzDtil3me8JNuXEuqWrkSTo9xpX/1UpxniBwu4dv2nDqA81f3jHKy5+H2heLr3ZXMofmXvvrYHbprQh/1gurTlcYiFSgZB+GHw1Hfi+CXF7DHp4mwd/5aI5fWvr9HN9w4TYm1tGvAzBSSLlV4oFx0evgn/X3SOvvvvX0NK7CbuvY8t1kaLIz3jfhuEzaIafZlWrxVui4KG7dKuVKt6BPN36HdROW+ojhHN2TkbJx8pfW745VMu2CFpVv4Kqqz6qWL26+o2Nto22Yur122tEW7L6EqbcWVqCUqCvtIJ1vfSs9EYPxqalbRwYFhFgUvJIukxtltnqPvHL16d+nXpSODEoKT5+aI8k9TRYsZmsLw1y6Mwy6upRcfMssOxVm+zzu2JdXyBpS+bqgHfQ7Ke2yO1i5jnWK4gWE5DLtWTlwCWWuRS3FgdyEpBOvnVa7fUihY+pLAEOOFawmxCl61s+aVs69KsGSx7Mnssss2xeQg5HILSM/DJCxkUlIdSh1QLiCk7QVKQr2HQ1zlii1GTfKNxnLdLwTZzivw/RBtTX/JLddi48WQ4htxZDgG+VSQnmSddeoFdIHi5w+nZW3i4nIUXV3cL8NptNs6OZXtspAH715uFORMzV7kUZe4ozjs7H3DapRhsoWh1bjYKXAtIHNtKfXr0FRbgjMWGOcL8tnpEpTb2M5IOrOup0rYA+Seg+TXN4409nf9Na3aLUtcogrnKbnF2JJlcxash9+1G+ZCDrRPp6jp36j3rF5fxHwzEpZuKyCaRZ3rjAuEM+C4slsqUkK+1J9UkftWt0flcbD/AIPxAUmROVmWdu5kGNeS2q1f0lbQWU602kJKeugQasfKpGcP1JWV/iUTZTbz2GoUG37vwUeEq6WecK0d/wCPT5+K0+nUXvwTu2tibp4x8OVWL18MjQLdlxDbizbPDSl75Roo2d8p7e1feF4tYBMyjEZGz6X7u4PK035Z1PMdE9ykAdAarzjTe5hcYhj1xNY1H2Ek3llj5S2Zvg6h8/cQFL5Ry7V07fNT7H5PiBd35YyDC4mLsC0sruGJMPLSQk8oCeUdz81l44KN/aKpSuvoykdxBw6QuIpi0nLdbkt4nkQQpPj+GopWBsDqCCNHv6Vl5WeiouQjo++vEs3Mk4pqzbKSS6sDmIGhodPetVcKxZrMLPAodV29ZP8A4fLv2l0yohdu+i72hY0R2NSCYzKalcsw3Hpu38vmUDf3KLlAT9twfLK8N9HuFaB/X9RW/TK6TIszrcufJeKuBY5KuRcrkDLd41/dabacdLX/AJciTy/vUmx2aisgiWpWGvmL6ye/I80rYPuPgj2NVDwPD9rwQs5bFIeznZy+fWuTF1chpbrxWoLLiyCdjpoH0/WpfwNyBM9jsu0McsseXFTNxHu2lo4Ft+IkIWtQISB1U4fT03XKeNRTrwbjJt7nbiFwpxfOMkjp+a895uPQlDPgPcidJWVjY17k1XvG3gG3NyC8swN1MRPpX4y2UqLbb6xr7kkf219O/YnqdHZq/wCmqkM+SLVPgsscZeDTbHpuKVxLjrnjjHy8VkkcWfKyJ2hlzwlEoLqQOo3/AJp2D661utu4iUjJexRexd/bX1s4NodYdS4lX7g11moSHm7Q2kxGWcgwe7dwylxP8EVEGeDfDm3uTcWWPqsnCd7tb19kfwlYFby5IZab2/RmEJQ/J4uJ+DYZKZVFZjPO3plrAtosGGHgC+ttZcShKNbUd7/bvoAmu97wph5ry0xIPSMVkJbPmLyJvlsLJWsrUjY/MkKUQCRvVS6AxTH4JanYyNbaeUNKeWpTjpHtzrJVr43WbA0NVzeWSpJ8GtC5aIzgmEwuG2t03Fi6dfvHA7d3d28Xn7hYGgVLPU6Hp27+9Yw8MMaONP46ReGNuZMyVw145/quFYWUq6dUbAOvipzSs65Xdl0o8klH2kjF3EbdspctrllTLqP9kKGiP4NRrFuHkHjs1ZS9k5fOXVlFCJZU+/z6tw4XAk9OpBOgfYAVMKVNTSqy0jBZfi8ZlDEezJeNy2F+zfs+Gvl/qtnad+469qzTiApooPYjVd6UtikQzF+G2O45dRNzGC6C4lm4ZtvEd5vtfXzr3069e1e2ewiAmsth8pu7ZQlYkq8u8hWiUkEcqv8AYdSR7VJqVdcruyaUVvMcHscvJe6ko2QnoBy8c8S7bipBdu2+o91FI6bPxqpXg+KQmHQpiYK1UxbqeU+4VrK1uuK1zLUo9So6HX4FZ3VKPJJqmwopOxSlKyaFKUoBSlKAUpSgFKUoBSlKAUpSgFKUoD//2Q==" alt="KFI Staffing" style="height:48px;object-fit:contain;"></div><div class="setup-logo" style="color:#1e3a5f;">Driver OT Dashboard</div>
+    <div class="setup-sub">Select your week and upload customer timesheet files to launch.</div>
+
+    <div class="date-row">
+      <div class="form-group">
+        <label>Week Start</label>
+        <input type="date" id="start-date" value="2026-04-19">
+      </div>
+      <div class="form-group">
+        <label>Week End</label>
+        <input type="date" id="end-date" value="2026-04-25">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Upload Customer Timesheet Files (Excel or PDF)</label>
+      <div class="upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <strong>Drop files here or click to browse</strong>
+        <p>Penda, Trienda, LSI, Greystone, Adient, Time Clock Punch (.xlsx, .pdf)</p>
+      </div>
+      <input type="file" id="file-input" multiple accept=".xlsx,.xls,.pdf">
+      <div class="file-chips" id="file-chips"></div>
+      <div class="upload-status" id="upload-status"></div>
+    </div>
+
+    <button class="btn-primary" id="launch-btn" onclick="launchDashboard()">Fetch Driver Data & Launch Dashboard</button>
+    <div class="setup-status" id="setup-status"></div>
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="dashboard">
+  <header>
+    <div class="logo"><img src="data:image/jpeg;base64,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" alt="KFI Staffing" style="height:32px;object-fit:contain;"> <span style="color:#1e3a5f;font-family:Syne,sans-serif;font-weight:700;font-size:0.95rem;letter-spacing:0.03em;">Driver OT Dashboard</span></div>
+    <div class="header-right">
+      <div class="api-status">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status-text">ConnectTeam Live</span>
+      </div>
+      <div class="week-badge" id="week-badge">Week: —</div>
+      <button class="btn-sm" onclick="resetDashboard()">↩ New Week</button>
+      <button class="btn-sm" style="border-color:var(--teal);color:var(--teal);" onclick="showRefreshPanel()">↺ Refresh Files</button>
+      <button class="btn-sm" style="border-color:#8b5cf6;color:#8b5cf6;" onclick="showManualPanel()">✎ Manual Entry</button>
+      <button class="btn-sm" style="border-color:#16a34a;color:#16a34a;" onclick="downloadReport()">⬇ Download Report</button>
+    </div>
+  </header>
+
+  <nav id="main-nav">
+    <button class="nav-btn summary-nav active" data-page="summary">All Drivers</button>
+    <button class="nav-btn cust-nav" data-page="customers">By Customer</button>
+  </nav>
+
+  <div class="dashboard-body">
+    <!-- LEFT SIDEBAR -->
+    <aside id="sidebar">
+      <div class="sidebar-inner">
+        <div id="sidebar-list"></div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main>
+    <!-- REFRESH PANEL -->
+    <div id="refresh-panel" style="display:none;background:var(--surface);border:1px solid var(--teal);border-radius:10px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 12px rgba(8,145,178,0.1)">
+      <div style="font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;color:var(--teal);margin-bottom:0.8rem;">↺ Refresh Customer Files</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:1rem;">Drop replacement files below. Only customer timesheet data will update — ConnectTeam data stays live.</div>
+      <div class="upload-area" id="refresh-drop" onclick="document.getElementById('refresh-file-input').click()">
+        <strong>Drop updated files here or click to browse</strong>
+        <p>Drop any updated customer timesheets to replace existing data</p>
+      </div>
+      <input type="file" id="refresh-file-input" multiple accept=".xlsx,.xls,.pdf" style="display:none">
+      <div class="file-chips" id="refresh-chips"></div>
+      <div style="display:flex;gap:0.8rem;margin-top:1rem;">
+        <button class="btn-primary" style="background:var(--teal);color:#0b0d11;" onclick="processRefreshFiles()">Process & Update Dashboard</button>
+        <button class="btn-primary" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);" onclick="hideRefreshPanel()">Cancel</button>
+      </div>
+      <div id="refresh-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.8rem;"></div>
+    </div>
+
+    <!-- MANUAL ENTRY PANEL -->
+    <div id="manual-panel" style="display:none;background:var(--surface);border:1px solid #8b5cf6;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 12px rgba(139,92,246,0.1)">
+      <div style="font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;color:#8b5cf6;margin-bottom:0.4rem;">✎ Manual Entry</div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:1.2rem;">For scanned PDFs. Select a driver, enter clock in/out times for each day worked.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.2rem;">
+        <div>
+          <label style="font-size:0.62rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Driver</label>
+          <select id="manual-driver" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:0.8rem;padding:10px 14px;border-radius:6px;outline:none;">
+            <option value="">— Select Driver —</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.62rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Customer</label>
+          <input type="text" id="manual-customer" placeholder="e.g. Delallo" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:0.8rem;padding:10px 14px;border-radius:6px;outline:none;">
+        </div>
+      </div>
+      <div id="manual-days-grid"></div>
+      <div style="display:flex;gap:0.8rem;margin-top:1rem;">
+        <button class="btn-primary" style="background:#8b5cf6;color:#fff;" onclick="submitManualEntry()">Add to Dashboard</button>
+        <button class="btn-primary" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);" onclick="hideManualPanel()">Cancel</button>
+      </div>
+      <div id="manual-status" style="font-size:0.72rem;color:var(--muted);margin-top:0.8rem;"></div>
+    </div>
+    <div class="page active" id="page-summary">
+      <div class="section-title">
+        All Drivers — Week Summary
+        <span class="sub" id="summary-sub"></span>
+      </div>
+      <div class="stat-grid" id="summary-stats"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Customer</th>
+              <th class="num">Driver Hrs</th>
+              <th class="num">Customer Hrs</th>
+              <th class="num">Total Hrs</th>
+              <th class="num">Regular (RT)</th>
+              <th class="num">Overtime (OT)</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="page" id="page-customers">
+      <div class="section-title">By Customer</div>
+      <div class="cust-grid" id="cust-grid"></div>
+    </div>
+
+    <!-- DRIVER PAGES injected here -->
+  </main>
+  </div><!-- end dashboard-body -->
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────
+const TIME_CLOCKS = [14587307, 14672527, 16923482]; // KFI Staffing, Relocation, EST-KFI
+const OT_THRESHOLD = 40;
+
+// ── STATE ────────────────────────────────────────────────────────
+let STATE = {
+  apiKey: '',
+  startDate: '',
+  endDate: '',
+  drivers: {},       // kfi_id -> driver info
+  driverPunches: {}, // kfi_id -> [shifts from ConnectTeam]
+  custPunches: [],   // customer punches from uploaded files
+  manualPunches: [], // protected — never wiped by file refresh
+  reviewedDrivers: new Set(), // kfi_ids marked as reviewed
+  editedPunches: {}, // key: "kfiId|date|origClockIn" -> {clock_in, clock_out} overrides
+  reviewedDrivers: new Set(), // kfi_ids marked as reviewed — persists across refreshes
+  mapping: {},
+  files: []
+};
+
+// ── ID MAPPING (embedded from mapping file) ──────────────────────
+// WorksheetID -> KFI ID
+const EMBEDDED_MAPPING = {
+  "692": "2002909", "74490508": "2003283", "74490576": "2004738",
+  "94192369": "2004704", "11459312": "2004743", "72737390": "2003681",
+  "2003141": "2004651", "2003056": "2003546", "2002941": "2004148",
+  "2003037": "2004393", "2004490": "2004490", "23870385": "2004786",
+  "2003199": "2004805", "74490600": "2004792", "2003210": "2004589",
+  "78772815": "2004872", "74490605": "2003196",
+  // LSI adds N suffix
+  "72737390N": "2003681", "23870385N": "2004786", "78772815N": "2004872",
+  // Adient TELD IDs (strip TELD prefix)
+  "TELD692": "2002909",
+  // IWG employee IDs
+  "104651": "2005056",
+  // DeLallo Badge IDs
+  "3619": "2005003",
+  // WB Manufacturing - Jesus Lira (manual entry only for now)
+  "F1SK6593U": "2005037",
+  // Additional Burnett G mappings
+  "74490612": "2005207",
+  // Additional LSI mappings
+  "75210818N": "2005166",
+  "75210818": "2005166"
+};
+
+// ── PERSISTENCE ───────────────────────────────────────────────────
+const STATE_KEY = 'kfi_dashboard_state';
+
+function saveState() {
+  try {
+    const toSave = {
+      startDate: STATE.startDate,
+      endDate: STATE.endDate,
+      drivers: STATE.drivers,
+      driverPunches: STATE.driverPunches,
+      custPunches: STATE.custPunches,
+      manualPunches: STATE.manualPunches,
+      reviewedDrivers: [...STATE.reviewedDrivers],
+      editedPunches: STATE.editedPunches,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem(STATE_KEY, JSON.stringify(toSave));
+  } catch(e) { console.warn('Could not save state:', e); }
+}
+
+function loadSavedState() {
+  try {
+    const saved = localStorage.getItem(STATE_KEY);
+    if (!saved) return false;
+    const data = JSON.parse(saved);
+    if (!data.startDate || !data.drivers) return false;
+    STATE.startDate = data.startDate;
+    STATE.endDate = data.endDate;
+    STATE.drivers = data.drivers;
+    STATE.driverPunches = data.driverPunches || {};
+    STATE.custPunches = data.custPunches || [];
+    STATE.manualPunches = data.manualPunches || [];
+    STATE.reviewedDrivers = new Set(data.reviewedDrivers || []);
+    STATE.editedPunches = data.editedPunches || {};
+    return true;
+  } catch(e) { return false; }
+}
+
+// On page load — check if we have saved state
+window.addEventListener('DOMContentLoaded', () => {
+  // Try to restore previous session
+  if (loadSavedState()) {
+    buildDashboard();
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('api-dot').classList.remove('off');
+    document.getElementById('week-badge').textContent = `Week: ${STATE.startDate} → ${STATE.endDate}`;
+    document.getElementById('api-status-text').textContent = 'Restored from session';
+  }
+
+  // Default dates to current week
+  const today = new Date();
+  const day = today.getDay();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - day);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+  document.getElementById('start-date').value = sunday.toISOString().slice(0,10);
+  document.getElementById('end-date').value = saturday.toISOString().slice(0,10);
+});
+
+// ── REFRESH FILES ────────────────────────────────────────────────
+let refreshFiles = [];
+
+function showRefreshPanel() {
+  document.getElementById('refresh-panel').style.display = 'block';
+  window.scrollTo(0, 0);
+  initRefreshDropZone();
+}
+function hideRefreshPanel() {
+  document.getElementById('refresh-panel').style.display = 'none';
+  refreshFiles = [];
+  document.getElementById('refresh-chips').innerHTML = '';
+  document.getElementById('refresh-status').textContent = '';
+}
+
+function initRefreshDropZone() {
+  const refreshDrop = document.getElementById('refresh-drop');
+  const refreshInput = document.getElementById('refresh-file-input');
+  if (!refreshDrop || refreshDrop._init) return;
+  refreshDrop._init = true;
+  refreshDrop.addEventListener('dragover', e => { e.preventDefault(); refreshDrop.classList.add('over'); });
+  refreshDrop.addEventListener('dragleave', () => refreshDrop.classList.remove('over'));
+  refreshDrop.addEventListener('drop', e => {
+    e.preventDefault(); refreshDrop.classList.remove('over');
+    refreshFiles = [...e.dataTransfer.files];
+    showRefreshChips();
+  });
+  refreshInput.addEventListener('change', () => { refreshFiles = [...refreshInput.files]; showRefreshChips(); });
+}
+
+function showRefreshChips() {
+  document.getElementById('refresh-chips').innerHTML = refreshFiles.map(f => `<div class="file-chip">📄 ${f.name}</div>`).join('');
+}
+
+async function processRefreshFiles() {
+  if (!refreshFiles.length) {
+    document.getElementById('refresh-status').textContent = 'No files selected.';
+    return;
+  }
+  document.getElementById('refresh-status').textContent = `Processing ${refreshFiles.length} file(s)...`;
+  
+  const kfiSet = new Set(Object.keys(STATE.drivers));
+  const newPunches = [];
+  
+  for (const file of refreshFiles) {
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      if (file.name.toLowerCase().includes('adient')) {
+        const punches = await parseAdientPDF(file, kfiSet);
+        newPunches.push(...punches);
+      } else if (file.name.toLowerCase().includes('iwg') || file.name.toLowerCase().includes('international wire')) {
+        const punches = await parseIWGPDF(file, kfiSet);
+        newPunches.push(...punches);
+      } else if (file.name.toLowerCase().includes('delallo')) {
+        const punches = await parseDelalloPDF(file, kfiSet);
+        newPunches.push(...punches);
+      }
+      continue;
+    }
+    const wb = await parseExcelFile(file);
+    if (!wb) continue;
+    const punches = detectAndParseFile(file.name, wb, kfiSet);
+    newPunches.push(...punches);
+  }
+
+  // Merge: replace punches for customers that appear in new files
+  const newCustomers = new Set(newPunches.map(p => p.customer));
+  // Only replace file-sourced punches — manual entries are preserved
+  STATE.custPunches = STATE.custPunches.filter(p => !newCustomers.has(p.customer));
+  STATE.custPunches.push(...newPunches);
+  // Re-merge manual punches (they survive all refreshes)
+  STATE.manualPunches.forEach(mp => {
+    const exists = STATE.custPunches.some(p => 
+      p.kfi_id === mp.kfi_id && p.customer === mp.customer && 
+      p.date === mp.date && p.clock_in === mp.clock_in
+    );
+    if (!exists) STATE.custPunches.push(mp);
+  });
+
+  // Re-apply any manual time edits
+  applyEditedPunches();
+
+  document.getElementById('refresh-status').textContent = `✓ Updated ${newPunches.length} punches from ${newCustomers.size} customer(s). Rebuilding dashboard...`;
+  
+  buildDashboard();
+  saveState();
+  
+  setTimeout(() => {
+    hideRefreshPanel();
+    document.getElementById('refresh-status').textContent = '';
+  }, 1500);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+
+  if (dropZone) {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault(); dropZone.classList.remove('over');
+      STATE.files = [...e.dataTransfer.files];
+      showFileChips();
+    });
+  }
+  if (fileInput) {
+    fileInput.addEventListener('change', () => { STATE.files = [...fileInput.files]; showFileChips(); });
+  }
+});
+
+function showFileChips() {
+  const chips = document.getElementById('file-chips');
+  chips.innerHTML = STATE.files.map(f => `<div class="file-chip">📄 ${f.name}</div>`).join('');
+  document.getElementById('upload-status').textContent = `${STATE.files.length} file(s) ready`;
+}
+
+// ── EXCEL PARSING ────────────────────────────────────────────────
+async function parseExcelFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        resolve(wb);
+      } catch(err) {
+        resolve(null);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function sheetToRows(wb, sheetName) {
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+}
+
+function detectAndParseFile(fname, wb, kfiSet) {
+  const punches = [];
+  const lower = fname.toLowerCase();
+
+  if (lower.includes('penda') || lower.includes('trienda')) {
+    const customer = lower.includes('trienda') ? 'Trienda' : 'Penda';
+    const rows = sheetToRows(wb, wb.SheetNames[0]);
+    const hdr = rows[0];
+    if (!hdr) return punches;
+    const empNumIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('employee number'));
+    const startIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('time start'));
+    const endIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('time end'));
+    const hoursIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'hours');
+    const payIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('pay category'));
+    const dateIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'date');
+
+    // Use a map to deduplicate by employee+clockin+clockout, summing hours
+    const shiftMap = {};
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r[empNumIdx]) continue;
+      let empId = String(Math.round(r[empNumIdx]));
+      let kfiId = EMBEDDED_MAPPING[empId] || (kfiSet.has(empId) ? empId : '');
+      if (!kfiId) continue;
+      if (!r[startIdx] || !r[endIdx]) continue;
+      const hours = parseFloat(r[hoursIdx]) || 0;
+      const payType = String(r[payIdx] || 'Reg');
+      // Skip SHIFT PREM rows — duplicates for pay premium only
+      if (payType.toUpperCase().includes('SHIFT PREM')) continue;
+      const date = r[dateIdx] ? fmtDate(r[dateIdx]) : '';
+      const clockIn = fmtDT(r[startIdx]);
+      const clockOut = fmtDT(r[endIdx]);
+      const key = `${kfiId}|${clockIn}|${clockOut}`;
+      if (shiftMap[key]) {
+        // Same shift split into Reg + OT rows — sum the hours
+        shiftMap[key].hours = Math.round((shiftMap[key].hours + hours) * 1000) / 1000;
+        if (payType.includes('OT')) shiftMap[key].pay_type = 'OT';
+      } else {
+        shiftMap[key] = {
+          kfi_id: kfiId, customer, date, clock_in: clockIn, clock_out: clockOut,
+          hours: Math.round(hours * 1000) / 1000,
+          pay_type: payType.includes('OT') ? 'OT' : 'Reg',
+          source: 'Customer'
+        };
+      }
+    }
+    punches.push(...Object.values(shiftMap));
+  }
+
+  else if (lower.includes('greystone')) {
+    const rows = sheetToRows(wb, wb.SheetNames[0]);
+    const hdr = rows[0];
+    if (!hdr) return punches;
+    const fnIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('file number'));
+    const dtIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('pay date'));
+    const inIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'time in');
+    const outIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'time out');
+    const hrIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'hours');
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r[fnIdx]) continue;
+      const kfiId = String(Math.round(r[fnIdx]));
+      if (!kfiSet.has(kfiId)) continue;
+      if (!r[inIdx] || !r[outIdx]) continue;
+      const date = r[dtIdx] ? fmtDate(r[dtIdx]) : '';
+      punches.push({
+        kfi_id: kfiId, customer: 'Greystone',
+        date, clock_in: `${date} ${r[inIdx]}`, clock_out: `${date} ${r[outIdx]}`,
+        hours: parseFloat(r[hrIdx]) || 0,
+        pay_type: 'Reg', source: 'Customer'
+      });
+    }
+  }
+
+  else if (lower.includes('lsi')) {
+    const rows = sheetToRows(wb, wb.SheetNames[0]);
+    const hdr = rows[0];
+    if (!hdr) return punches;
+    const posIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('position'));
+    const inIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'in time');
+    const outIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'out time');
+    const hrIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'hours');
+    const dtIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'pay date');
+    const payIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('pay code') && hdr.indexOf(h) > 10);
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r[posIdx]) continue;
+      const posId = String(r[posIdx]).trim();
+      if (posId.includes('Total')) continue;
+      const kfiId = EMBEDDED_MAPPING[posId] || EMBEDDED_MAPPING[posId + 'N'] || '';
+      if (!kfiId) continue;
+      if (!r[inIdx] || !r[outIdx]) continue;
+      const hours = parseFloat(r[hrIdx]) || 0;
+      if (hours === 0) continue;
+      punches.push({
+        kfi_id: kfiId, customer: 'LSI',
+        date: r[dtIdx] ? fmtDate(r[dtIdx]) : '',
+        clock_in: fmtDT(r[inIdx]), clock_out: fmtDT(r[outIdx]),
+        hours: Math.round(hours * 1000) / 1000,
+        pay_type: 'Reg', source: 'Customer'
+      });
+    }
+  }
+
+  else if (lower.includes('time_clock') || lower.includes('time clock') || lower.includes('zenople')) {
+    const rows = sheetToRows(wb, wb.SheetNames[0]);
+    const hdr = rows[0];
+    if (!hdr) return punches;
+    const custIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'customer');
+    const pidIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('person id'));
+    const dtIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('work date'));
+    const inIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('clock in'));
+    const outIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('clock out'));
+    const brkIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('break hours'));
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const kfiId = r[pidIdx] ? String(r[pidIdx]).trim() : '';
+      if (!kfiSet.has(kfiId)) continue;
+      if (!r[inIdx] || !r[outIdx]) continue;
+      const date = r[dtIdx] ? fmtDate(r[dtIdx]) : '';
+      const brk = parseFloat(r[brkIdx]) || 0;
+      let hours = 0;
+      try {
+        const ci = parseTime12(date, String(r[inIdx]));
+        const co = parseTime12(date, String(r[outIdx]));
+        if (co < ci) co.setDate(co.getDate() + 1);
+        hours = Math.round(((co - ci) / 3600000 - brk) * 1000) / 1000;
+      } catch(e) {}
+      punches.push({
+        kfi_id: kfiId, customer: String(r[custIdx] || 'Unknown'),
+        date, clock_in: `${date} ${r[inIdx]}`, clock_out: `${date} ${r[outIdx]}`,
+        hours, pay_type: 'Reg', source: 'Customer'
+      });
+    }
+  }
+
+  else if (lower.includes('burnett')) {
+    const rows = sheetToRows(wb, wb.SheetNames[0]);
+    const hdr = rows[0];
+    if (!hdr) return punches;
+    const empIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('employee id'));
+    const dateIdx = hdr.findIndex(h => h && String(h).toLowerCase() === 'work date');
+    const inIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('punch in time') && !String(h).toLowerCase().includes('round'));
+    const outIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('punch out time') && !String(h).toLowerCase().includes('round'));
+    const regIdx = hdr.findIndex(h => h && String(h).toLowerCase().includes('regular duration'));
+    const ot1Idx = hdr.findIndex(h => h && String(h).toLowerCase().includes('ot1 duration'));
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r[empIdx]) continue;
+      const empId = String(Math.round(r[empIdx]));
+      const kfiId = EMBEDDED_MAPPING[empId] || (kfiSet.has(empId) ? empId : '');
+      if (!kfiId) continue;
+      if (!r[inIdx] || !r[outIdx]) continue;
+      const reg = parseFloat(r[regIdx]) || 0;
+      const ot1 = parseFloat(r[ot1Idx]) || 0;
+      const hours = Math.round((reg + ot1) * 1000) / 1000;
+      if (hours === 0) continue;
+      const payType = ot1 > 0 ? 'OT' : 'Reg';
+      punches.push({
+        kfi_id: kfiId, customer: 'Burnett Dairy - Grantsburg',
+        date: fmtDate(r[dateIdx]),
+        clock_in: fmtDT(r[inIdx]), clock_out: fmtDT(r[outIdx]),
+        hours, pay_type: payType, source: 'Customer'
+      });
+    }
+  }
+    // Adient: summary only - IDs don't map directly, skip for now
+  // PDF parsing handled separately via parseAdientPDF
+
+  return punches;
+}
+
+function parseTime12(date, timeStr) {
+  const d = new Date(`${date} ${timeStr}`);
+  return isNaN(d) ? new Date() : d;
+}
+
+function fmtDate(v) {
+  if (!v) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const d = new Date(v);
+  return isNaN(d) ? String(v).slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+function fmtDT(v) {
+  if (!v) return '';
+  if (v instanceof Date) {
+    // Use local time parts to avoid UTC shift
+    const yr = v.getFullYear();
+    const mo = String(v.getMonth()+1).padStart(2,'0');
+    const dy = String(v.getDate()).padStart(2,'0');
+    const hh = String(v.getHours()).padStart(2,'0');
+    const mm = String(v.getMinutes()).padStart(2,'0');
+    const ss = String(v.getSeconds()).padStart(2,'0');
+    return `${yr}-${mo}-${dy} ${hh}:${mm}:${ss}`;
+  }
+  const d = new Date(v);
+  if (isNaN(d)) return String(v).slice(0, 19);
+  const yr = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,'0');
+  const dy = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return `${yr}-${mo}-${dy} ${hh}:${mm}:${ss}`;
+}
+
+// ── ADIENT PDF PARSING ───────────────────────────────────────────
+async function parseAdientPDF(file, kfiSet) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const punches = [];
+    let currentTELD = null;
+    let kfiId = null;
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      // Group items by Y position (same row = same y within 3px)
+      const rows = {};
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (!rows[y]) rows[y] = [];
+        rows[y].push({ x: item.transform[4], text: item.str.trim() });
+      });
+
+      // Sort rows top to bottom (descending Y in PDF coords)
+      const sortedYs = Object.keys(rows).map(Number).sort((a, b) => b - a);
+
+      // Build lines of text sorted by X within each row
+      const lines = sortedYs.map(y => {
+        return rows[y]
+          .sort((a, b) => a.x - b.x)
+          .map(i => i.text)
+          .filter(t => t.length > 0)
+          .join(' ');
+      });
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Detect employee
+        const empMatch = line.match(/\((TELD\d+)\)/);
+        if (empMatch) {
+          currentTELD = empMatch[1];
+          kfiId = EMBEDDED_MAPPING[currentTELD] || '';
+          continue;
+        }
+
+        if (!kfiId || !kfiSet.has(kfiId)) continue;
+
+        // Detect apply date line — contains a date like "Apr 19, 2026"
+        const dateMatch = line.match(/^(Apr|May|Jun)\s+(\d+),\s+2026/);
+        if (dateMatch) {
+          const month = { Apr: '04', May: '05', Jun: '06' }[dateMatch[1]];
+          const date = `2026-${month}-${String(parseInt(dateMatch[2])).padStart(2,'0')}`;
+
+          // Hours appear in this line or the Worked Shift line nearby
+          // Look in current line and next 3 lines for hours
+          let hours = 0;
+          let clockIn = date, clockOut = date;
+
+          for (let j = i; j < Math.min(i + 4, lines.length); j++) {
+            const hrsMatch = lines[j].match(/\b((?:[1-9]|1[0-9]|2[0-4])\.\d{2})\b/);
+            if (hrsMatch) {
+              const h = parseFloat(hrsMatch[1]);
+              if (h > 0 && h < 25) { hours = h; break; }
+            }
+          }
+
+          // Times appear on the "Segment" line — look for "H:MM PM" patterns
+          for (let j = i; j < Math.min(i + 5, lines.length); j++) {
+            const times = lines[j].match(/\b(\d{1,2}:\d{2}\s*[AP]M)\b/gi);
+            if (times && times.length >= 2) {
+              clockIn = `${date} ${times[0]}`;
+              clockOut = `${date} ${times[1]}`;
+              break;
+            }
+          }
+
+          if (hours > 0) {
+            // Fix overnight shifts — if clock out time is before clock in, it's next day
+            let clockOutFixed = clockOut;
+            if (clockIn !== date && clockOut !== date) {
+              const parseDT = (s) => {
+                const m = s.match(/^(\d{4}-\d{2}-\d{2})\s+(\d+:\d+)\s*([AP]M)$/i);
+                if (m) {
+                  let [_, dt, time, ampm] = m;
+                  let [hh, mm] = time.split(':').map(Number);
+                  if (ampm.toUpperCase() === 'PM' && hh !== 12) hh += 12;
+                  if (ampm.toUpperCase() === 'AM' && hh === 12) hh = 0;
+                  return new Date(`${dt}T${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:00`);
+                }
+                return new Date(s);
+              };
+              const ci = parseDT(clockIn);
+              const co = parseDT(clockOut);
+              if (!isNaN(ci) && !isNaN(co) && co <= ci) {
+                // Clock out is next day
+                const nextDay = new Date(co);
+                nextDay.setDate(nextDay.getDate() + 1);
+                const nd = nextDay.toISOString().slice(0, 10);
+                const timePart = clockOut.replace(/^\d{4}-\d{2}-\d{2}\s+/, '');
+                clockOutFixed = `${nd} ${timePart}`;
+              }
+            }
+            punches.push({
+              kfi_id: kfiId, customer: 'Adient',
+              date, clock_in: clockIn, clock_out: clockOutFixed,
+              hours, pay_type: 'Reg', source: 'Customer'
+            });
+          }
+        }
+      }
+    }
+    return punches;
+  } catch(err) {
+    console.error('Adient PDF parse error:', err);
+    return [];
+  }
+}
+
+// ── IWG PDF PARSING ──────────────────────────────────────────────
+async function parseIWGPDF(file, kfiSet) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const punches = [];
+    let currentId = null;
+    let kfiId = null;
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      // Group by Y position into rows
+      const rows = {};
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (!rows[y]) rows[y] = [];
+        rows[y].push({ x: item.transform[4], text: item.str.trim() });
+      });
+      const lines = Object.keys(rows).map(Number).sort((a,b) => b-a).map(y =>
+        rows[y].sort((a,b) => a.x - b.x).map(i => i.text).filter(t => t).join(' ')
+      );
+
+      for (const line of lines) {
+        // Match employee: "Employee: Last, First  ID: 104651"
+        const empMatch = line.match(/Employee:\s+.+?\s+ID:\s+(\d+)/);
+        if (empMatch) {
+          currentId = empMatch[1];
+          kfiId = EMBEDDED_MAPPING[currentId] || '';
+          continue;
+        }
+
+        if (!kfiId || !kfiSet.has(kfiId)) continue;
+
+        // Match shift row: "2026-04-20  7:00 AM  4:05 PM  9.00"
+        const shiftMatch = line.match(/(2026-\d{2}-\d{2})\s+(\d+:\d+\s*[AP]M).*?(\d+:\d+\s*[AP]M)\s+([\d.]+)/);
+        if (shiftMatch) {
+          const hours = parseFloat(shiftMatch[4]);
+          if (hours > 0 && hours < 25) {
+            punches.push({
+              kfi_id: kfiId,
+              customer: 'International Wire Group',
+              date: shiftMatch[1],
+              clock_in: `${shiftMatch[1]} ${shiftMatch[2]}`,
+              clock_out: `${shiftMatch[1]} ${shiftMatch[3]}`,
+              hours,
+              pay_type: 'Reg',
+              source: 'Customer'
+            });
+          }
+        }
+      }
+    }
+    return punches;
+  } catch(err) {
+    console.error('IWG PDF parse error:', err);
+    return [];
+  }
+}
+
+// ── DELALLO PDF PARSING ───────────────────────────────────────────
+async function parseDelalloPDF(file, kfiSet) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const punches = [];
+    let kfiId = null;
+    let badgeId = null;
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      const rows = {};
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        if (!rows[y]) rows[y] = [];
+        rows[y].push({ x: item.transform[4], text: item.str.trim() });
+      });
+      const lines = Object.keys(rows).map(Number).sort((a,b) => b-a).map(y =>
+        rows[y].sort((a,b) => a.x - b.x).map(i => i.text).filter(t => t).join(' ')
+      );
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Match Badge #: 3619
+        const badgeMatch = line.match(/Badge\s*[#:]+\s*(\d+)/i);
+        if (badgeMatch) {
+          badgeId = badgeMatch[1];
+          kfiId = EMBEDDED_MAPPING[badgeId] || '';
+          continue;
+        }
+
+        if (!kfiId || !kfiSet.has(kfiId)) continue;
+
+        // Match date rows like "Mon (04/20)" or "Mon 04/20" 
+        // Then look for IN/OUT times in same or nearby lines
+        const dateMatch = line.match(/(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^)]*\(?(0\d\/\d{2})\)?/i);
+        if (dateMatch) {
+          const parts = dateMatch[1].split('/');
+          const date = `2026-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+
+          // Look for Total Hrs/Day value in nearby lines
+          let hours = 0;
+          for (let j = i; j < Math.min(i + 4, lines.length); j++) {
+            // Daily total appears as a standalone number like "9.63" or "8.35"
+            const hrsMatch = lines[j].match(/\b(\d+\.\d{2})\b/g);
+            if (hrsMatch) {
+              for (const h of hrsMatch) {
+                const v = parseFloat(h);
+                if (v > 0 && v < 25 && v !== 2.00) { // skip Fixed:TOR 2.00 rows
+                  hours = v;
+                  break;
+                }
+              }
+              if (hours > 0) break;
+            }
+          }
+
+          // Get IN/OUT times
+          const timeMatch = line.match(/(\d+:\d+(?::\d+)?\s*[AP]M).*?(\d+:\d+(?::\d+)?\s*[AP]M)/i);
+          let clockIn = date, clockOut = date;
+          if (timeMatch) {
+            clockIn = `${date} ${timeMatch[1]}`;
+            clockOut = `${date} ${timeMatch[2]}`;
+          }
+
+          if (hours > 0) {
+            punches.push({
+              kfi_id: kfiId,
+              customer: 'Delallo',
+              date, clock_in: clockIn, clock_out: clockOut,
+              hours, pay_type: 'Reg', source: 'Customer'
+            });
+          }
+        }
+      }
+    }
+    return punches;
+  } catch(err) {
+    console.error('DeLallo PDF parse error:', err);
+    return [];
+  }
+}
+
+const PROXY = '/proxy'; // same-origin: served by this app's Express proxy
+
+async function fetchCT(endpoint, params = {}) {
+  const url = new URL(PROXY + endpoint);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
+  const resp = await fetch(url.toString());
+  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  return resp.json();
+}
+
+async function fetchAllUsers() {
+  let allUsers = [];
+  let offset = 0;
+  while (true) {
+    const data = await fetchCT('/users/v1/users', { limit: 500, offset });
+    const users = data?.data?.users || [];
+    allUsers = allUsers.concat(users);
+    if (users.length < 500) break;
+    offset += 500;
+  }
+  return allUsers;
+}
+
+async function fetchPunches(timeClockId) {
+  try {
+    const data = await fetchCT(`/time-clock/v1/time-clocks/${timeClockId}/time-activities`, {
+      startDate: STATE.startDate, endDate: STATE.endDate, activityTypes: 'shift'
+    });
+    return data?.data?.timeActivitiesByUsers || [];
+  } catch(e) { return []; }
+}
+
+// ── LAUNCH ───────────────────────────────────────────────────────
+async function launchDashboard() {
+  const startDate = document.getElementById('start-date').value;
+  const endDate = document.getElementById('end-date').value;
+
+  if (!startDate || !endDate) { setStatus('Please set start and end dates', 'err'); return; }
+
+  STATE.startDate = startDate;
+  STATE.endDate = endDate;
+
+  const btn = document.getElementById('launch-btn');
+  btn.disabled = true;
+  setStatus('Connecting to ConnectTeam API...');
+
+  try {
+    // 1. Fetch users
+    setStatus('Fetching driver list from ConnectTeam...');
+    const users = await fetchAllUsers();
+    const kfiSet = new Set();
+
+    users.forEach(u => {
+      const custField = u.customFields?.find(f => f.name === 'Customer');
+      const empIdField = u.customFields?.find(f => f.name === 'Employee ID');
+      const titleField = u.customFields?.find(f => f.name === 'Title');
+      const customer = custField?.value?.[0]?.value || String(custField?.value || 'Unknown');
+      const empId = empIdField?.value ? String(empIdField.value).trim() : '';
+      const isDriver = titleField?.value === 'Driver' || u.userType === 'user';
+      if (!u.isArchived && empId) {
+        kfiSet.add(empId);
+        STATE.drivers[empId] = {
+          kfi_id: empId,
+          name: `${u.firstName} ${u.lastName}`,
+          customer: customer,
+          ct_user_id: u.userId,
+          isDriver
+        };
+      }
+    });
+
+    setStatus(`Found ${Object.keys(STATE.drivers).length} drivers. Fetching punches...`);
+
+    // 2. Fetch punches from all time clocks
+    const allPunches = [];
+    for (const clockId of TIME_CLOCKS) {
+      const punches = await fetchPunches(clockId);
+      allPunches.push(...punches);
+    }
+
+    // Map CT user ID -> KFI ID
+    const ctToKfi = {};
+    Object.values(STATE.drivers).forEach(d => {
+      ctToKfi[d.ct_user_id] = d.kfi_id;
+    });
+
+    // Process driver punches
+    allPunches.forEach(up => {
+      const kfiId = ctToKfi[up.userId];
+      if (!kfiId || !STATE.drivers[kfiId]) return;
+      if (!STATE.driverPunches[kfiId]) STATE.driverPunches[kfiId] = [];
+      up.shifts?.forEach(shift => {
+        if (!shift.start?.timestamp || !shift.end?.timestamp) return;
+        const startMs = shift.start.timestamp * 1000;
+        const endMs = shift.end.timestamp * 1000;
+        const hours = Math.round((endMs - startMs) / 3600000 * 1000) / 1000;
+        // Store as ISO string — display layer converts to Central 12hr
+        const startISO = new Date(startMs).toISOString();
+        const endISO = new Date(endMs).toISOString();
+        STATE.driverPunches[kfiId].push({
+          kfi_id: kfiId,
+          date: new Date(startMs).toLocaleDateString('en-CA', {timeZone: CT_TZ}),
+          clock_in: startISO,
+          clock_out: endISO,
+          hours,
+          source: 'Driver'
+        });
+      });
+    });
+
+    setStatus(`Driver data loaded. Parsing ${STATE.files.length} timesheet file(s)...`);
+
+    // 3. Parse customer files
+    STATE.custPunches = [];
+    for (const file of STATE.files) {
+      setStatus(`Parsing ${file.name}...`);
+      try {
+        if (file.name.toLowerCase().includes('driver overtime') || file.name.toLowerCase().includes('driver_overtime')) {
+          continue; // skip the master worksheet
+        }
+        if (file.name.toLowerCase().endsWith('.pdf')) {
+          if (file.name.toLowerCase().includes('adient')) {
+            const punches = await Promise.race([
+              parseAdientPDF(file, kfiSet),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+            ]);
+            STATE.custPunches.push(...punches);
+          } else if (file.name.toLowerCase().includes('iwg') || file.name.toLowerCase().includes('international wire')) {
+            const punches = await Promise.race([
+              parseIWGPDF(file, kfiSet),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+            ]);
+            STATE.custPunches.push(...punches);
+          } else if (file.name.toLowerCase().includes('delallo')) {
+            const punches = await Promise.race([
+              parseDelalloPDF(file, kfiSet),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 30000))
+            ]);
+            STATE.custPunches.push(...punches);
+          }
+          continue;
+        }
+        const wb = await parseExcelFile(file);
+        if (!wb) continue;
+        const punches = detectAndParseFile(file.name, wb, kfiSet);
+        STATE.custPunches.push(...punches);
+      } catch(fileErr) {
+        console.warn(`Skipped ${file.name}:`, fileErr.message);
+        setStatus(`⚠ Skipped ${file.name} (${fileErr.message}) — continuing...`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    setStatus(`Loaded ${STATE.custPunches.length} customer punches. Building dashboard...`);
+
+    // 4. Build dashboard
+    buildDashboard();
+    saveState();
+
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('api-dot').classList.remove('off');
+    document.getElementById('week-badge').textContent = `Week: ${startDate} → ${endDate}`;
+
+  } catch(err) {
+    setStatus(`Error: ${err.message}`, 'err');
+    btn.disabled = false;
+  }
+}
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('setup-status');
+  el.textContent = msg;
+  el.className = 'setup-status' + (type ? ' ' + type : '');
+}
+
+// ── BUILD DASHBOARD ───────────────────────────────────────────────
+function h(n) { return (Math.round(n * 100) / 100).toFixed(2); }
+
+const CT_TZ = 'America/Chicago';
+
+function fmtDisplay(dtStr) {
+  if (!dtStr) return '—';
+  try {
+    let d;
+    // Handle "2026-04-19 8:58 PM" format — parse as local time
+    const localMatch = dtStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d+:\d+(?::\d+)?\s*[AP]M)$/i);
+    if (localMatch) {
+      d = new Date(`${localMatch[1]}T${localMatch[2]}`);
+      if (isNaN(d)) d = new Date(`${localMatch[1]} ${localMatch[2]}`);
+    } else {
+      d = new Date(dtStr.includes('T') ? dtStr : dtStr.replace(' ', 'T'));
+    }
+    if (isNaN(d)) return dtStr;
+    return d.toLocaleString('en-US', {
+      timeZone: CT_TZ,
+      month: '2-digit', day: '2-digit',
+      hour: 'numeric', minute: '2-digit',
+      hour12: true
+    });
+  } catch(e) { return dtStr; }
+}
+
+function fmt(dt) { return dt ? fmtDisplay(dt) : '—'; }
+
+function buildDashboard() {
+  // Merge driver + customer punches per driver
+  // Calculate running totals and RT/OT
+  const driverData = {};
+
+  Object.values(STATE.drivers).forEach(d => {
+    driverData[d.kfi_id] = {
+      ...d,
+      driverShifts: STATE.driverPunches[d.kfi_id] || [],
+      custShifts: STATE.custPunches.filter(p => p.kfi_id === d.kfi_id),
+      totalDriver: 0,
+      totalCustomer: 0,
+      rt: 0,
+      ot: 0
+    };
+  });
+
+  // Calculate totals and RT/OT
+  Object.values(driverData).forEach(driver => {
+    driver.totalDriver = driver.driverShifts.reduce((s, r) => s + r.hours, 0);
+    driver.totalCustomer = driver.custShifts.reduce((s, r) => s + r.hours, 0);
+    const total = driver.totalDriver + driver.totalCustomer;
+    driver.rt = Math.min(total, OT_THRESHOLD);
+    driver.ot = Math.max(0, total - OT_THRESHOLD);
+    driver.total = total;
+  });
+
+  buildSummaryPage(driverData);
+  buildCustomerPage(driverData);
+  buildDriverPages(driverData);
+}
+
+function buildSummaryPage(driverData) {
+  const drivers = Object.values(driverData).filter(d => d.totalDriver > 0);
+  drivers.sort((a, b) => a.name.localeCompare(b.name));
+
+  let totalDriver = 0, totalCust = 0, totalRT = 0, totalOT = 0;
+  drivers.forEach(d => { totalDriver += d.totalDriver; totalCust += d.totalCustomer; totalRT += d.rt; totalOT += d.ot; });
+
+  document.getElementById('summary-sub').textContent = `${STATE.startDate} — ${STATE.endDate} · ${drivers.length} active drivers`;
+  document.getElementById('summary-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Active Drivers</div><div class="stat-value v-accent">${drivers.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Driver Hours</div><div class="stat-value v-accent">${h(totalDriver)}</div></div>
+    <div class="stat-card"><div class="stat-label">Customer Hours</div><div class="stat-value v-teal">${h(totalCust)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Hours</div><div class="stat-value">${h(totalDriver + totalCust)}</div></div>
+    <div class="stat-card"><div class="stat-label">Regular Time</div><div class="stat-value v-green">${h(totalRT)}</div></div>
+    <div class="stat-card"><div class="stat-label">Overtime</div><div class="stat-value v-orange">${h(totalOT)}</div></div>
+  `;
+
+  const tbody = document.getElementById('summary-tbody');
+  tbody.innerHTML = '';
+  drivers.forEach(d => {
+    const isOT = d.ot > 0;
+    const tr = document.createElement('tr');
+    if (isOT) tr.classList.add('ot-row');
+    tr.innerHTML = `
+      <td><a class="driver-link" onclick="showDriver('${d.kfi_id}')">${d.name}</a></td>
+      <td>${d.customer}</td>
+      <td class="num driver-val">${h(d.totalDriver)}</td>
+      <td class="num cust-val">${h(d.totalCustomer)}</td>
+      <td class="num">${h(d.total)}</td>
+      <td class="num rt-val">${h(d.rt)}</td>
+      <td class="num ${isOT ? 'ot-val' : ''}">${h(d.ot)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Footer totals
+  const tfoot = document.createElement('tr');
+  tfoot.style.fontWeight = '600';
+  tfoot.style.borderTop = '2px solid var(--border)';
+  tfoot.innerHTML = `
+    <td colspan="2" style="color:var(--muted);font-size:0.65rem;">TOTALS</td>
+    <td class="num driver-val">${h(totalDriver)}</td>
+    <td class="num cust-val">${h(totalCust)}</td>
+    <td class="num">${h(totalDriver + totalCust)}</td>
+    <td class="num rt-val">${h(totalRT)}</td>
+    <td class="num ot-val">${h(totalOT)}</td>
+  `;
+  tbody.appendChild(tfoot);
+}
+
+function buildCustomerPage(driverData) {
+  const custMap = {};
+  Object.values(driverData).forEach(d => {
+    const cname = d.customer || 'Unknown';
+    if (!custMap[cname]) custMap[cname] = { drivers: [], totalDriver: 0, totalCust: 0, rt: 0, ot: 0 };
+    custMap[cname].drivers.push(d.name);
+    custMap[cname].totalDriver += d.totalDriver;
+    custMap[cname].totalCust += d.totalCustomer;
+    custMap[cname].rt += d.rt;
+    custMap[cname].ot += d.ot;
+  });
+
+  const grid = document.getElementById('cust-grid');
+  grid.innerHTML = '';
+  Object.entries(custMap).filter(([k]) => !k.startsWith('zz')).sort().forEach(([cname, c]) => {
+    const card = document.createElement('div');
+    card.className = 'cust-card';
+    card.innerHTML = `
+      <div class="cust-card-hdr">
+        <div class="cust-card-name">${cname}</div>
+        <div style="font-size:0.65rem;color:var(--muted)">${c.drivers.length} driver${c.drivers.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="cust-card-body">
+        <div class="cust-stat-row">
+          <div class="cust-stat"><div class="label">Driver</div><div class="val v-accent">${h(c.totalDriver)}</div></div>
+          <div class="cust-stat"><div class="label">Customer</div><div class="val v-teal">${h(c.totalCust)}</div></div>
+          <div class="cust-stat"><div class="label">RT</div><div class="val v-green">${h(c.rt)}</div></div>
+          <div class="cust-stat"><div class="label">OT</div><div class="val v-orange">${h(c.ot)}</div></div>
+        </div>
+        <div class="cust-drivers">${c.drivers.join(' · ')}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function buildDriverPages(driverData) {
+  const nav = document.getElementById('main-nav');
+  nav.querySelectorAll('.driver-nav-btn, .nav-group-label').forEach(el => el.remove());
+  document.querySelectorAll('.driver-page').forEach(el => el.remove());
+
+  const sidebar = document.getElementById('sidebar-list');
+  sidebar.innerHTML = '';
+
+  const main = document.querySelector('main');
+  const drivers = Object.values(driverData).filter(d => d.totalDriver > 0).sort((a, b) => {
+    const custCompare = (a.customer || '').localeCompare(b.customer || '');
+    return custCompare !== 0 ? custCompare : a.name.localeCompare(b.name);
+  });
+
+  let lastCustomer = null;
+  drivers.forEach(driver => {
+    const pid = 'page-driver-' + driver.kfi_id;
+
+    // Add customer group label in sidebar
+    if (driver.customer !== lastCustomer) {
+      lastCustomer = driver.customer;
+      const label = document.createElement('div');
+      label.className = 'sidebar-group-label';
+      label.textContent = driver.customer || 'Unknown';
+      sidebar.appendChild(label);
+    }
+
+    // Build all rows (driver + customer) sorted by actual clock-in time
+    const allRows = [
+      ...driver.driverShifts.map(r => ({ ...r, source: 'Driver' })),
+      ...driver.custShifts.map(r => ({ ...r, source: 'Customer' }))
+    ].sort((a, b) => {
+      // Parse actual clock-in timestamps for correct overnight ordering
+      const parseForSort = (r) => {
+        if (!r.clock_in || r.clock_in === r.date) return new Date(r.date).getTime();
+        // ISO string
+        let d = new Date(r.clock_in);
+        if (!isNaN(d)) return d.getTime();
+        // "2026-04-20 7:00 AM" style
+        d = new Date(r.clock_in.replace(/(\d{4}-\d{2}-\d{2})\s+/, '$1T'));
+        if (!isNaN(d)) return d.getTime();
+        // Fallback to date string
+        return new Date(r.date).getTime();
+      };
+      return parseForSort(a) - parseForSort(b);
+    });
+
+    // ── PUNCH VALIDATION ─────────────────────────────────────────
+    function parseTS(str) {
+      if (!str) return null;
+      // Handle "2026-04-19 8:58 PM" format
+      const localMatch = str.match(/^(\d{4}-\d{2}-\d{2})\s+(\d+:\d+(?::\d+)?\s*[AP]M)$/i);
+      if (localMatch) {
+        const d = new Date(`${localMatch[1]} ${localMatch[2]}`);
+        return isNaN(d) ? null : d;
+      }
+      // Handle ISO strings
+      let d = new Date(str);
+      if (!isNaN(d)) return d;
+      // Handle "2026-04-20 7:00 AM" style
+      d = new Date(str.replace(/(\d{4}-\d{2}-\d{2})\s+/, '$1T'));
+      return isNaN(d) ? null : d;
+    }
+
+    allRows.forEach((r, i) => {
+      const flags = [];
+      const ci = parseTS(r.clock_in);
+      const co = parseTS(r.clock_out);
+
+      // Flag: missing times
+      if (!r.clock_in || r.clock_in === r.date) flags.push({ type: 'red', msg: 'Missing clock in' });
+      if (!r.clock_out || r.clock_out === r.date) flags.push({ type: 'red', msg: 'Missing clock out' });
+
+      if (ci && co) {
+        // Flag: clock out before clock in
+        if (co <= ci) flags.push({ type: 'red', msg: 'Clock out before clock in' });
+        // Flag: very long shift (over 16 hours)
+        else if ((co - ci) > 16 * 60 * 60 * 1000) flags.push({ type: 'orange', msg: `Very long shift (${((co-ci)/3600000).toFixed(1)} hrs) — verify` });
+      }
+
+      // Flag: overlapping with any previous punch of SAME source
+      const samePrev = allRows.slice(0, i).filter(p => p.source === r.source);
+      for (const prev of samePrev) {
+        const prevCi = parseTS(prev.clock_in);
+        const prevCo = parseTS(prev.clock_out);
+        if (ci && co && prevCi && prevCo) {
+          if (ci < prevCo && co > prevCi) {
+            flags.push({ type: 'orange', msg: `Overlaps with another ${r.source} punch on ${prev.date}` });
+            break;
+          }
+        }
+      }
+
+      r._flags = flags;
+    });
+
+    const flagColors = { red: '#ef4444', orange: '#f97316', yellow: '#ca8a04' };
+    const hasPunchIssues = allRows.some(r => r._flags?.length > 0);
+
+    // Sidebar button
+    const btn = document.createElement('button');
+    const isReviewed = STATE.reviewedDrivers.has(driver.kfi_id);
+    btn.className = 'sidebar-btn' + (isReviewed ? ' reviewed' : '');
+    btn.dataset.page = pid;
+    btn.dataset.kfiId = driver.kfi_id;
+    btn.textContent = driver.name.toUpperCase() + (hasPunchIssues ? ' ⚠' : '');
+    btn.title = `${driver.name} — Double-click to mark as reviewed`;
+    btn.onclick = () => showDriverPage(pid, btn);
+    btn.ondblclick = (e) => {
+      e.stopPropagation();
+      if (STATE.reviewedDrivers.has(driver.kfi_id)) {
+        STATE.reviewedDrivers.delete(driver.kfi_id);
+        btn.classList.remove('reviewed');
+      } else {
+        STATE.reviewedDrivers.add(driver.kfi_id);
+        btn.classList.add('reviewed');
+      }
+      saveState();
+    };
+    sidebar.appendChild(btn);
+
+    // Running total
+    let running = 0;
+    const maxHrs = driver.total || 1;
+    let rowsHTML = '';
+    const flaggedCount = allRows.filter(r => r._flags?.length > 0).length;
+
+    allRows.forEach((r, rowIdx) => {
+      running += r.hours;
+      const pct = Math.min((running / maxHrs) * 100, 100);
+      const barColor = running > OT_THRESHOLD ? 'var(--orange)' : 'var(--accent)';
+      const isOT = running > OT_THRESHOLD;
+      const hasFlag = r._flags?.length > 0;
+      const flagHTML = hasFlag ? r._flags.map(f =>
+        `<span title="${f.msg}" style="color:${flagColors[f.type]};font-size:0.8rem;margin-left:4px;cursor:help;">⚠</span>`
+      ).join('') : '';
+      const rowId = `${driver.kfi_id}-${rowIdx}`;
+
+      rowsHTML += `
+        <tr class="${isOT ? 'ot-row' : ''}" ${hasFlag ? `style="background:rgba(239,68,68,0.04);"` : ''} id="punch-row-${rowId}">
+          <td>${r.date}</td>
+          <td><span class="badge badge-${r.source.toLowerCase()}">${r.source}</span></td>
+          <td class="editable-time" ondblclick="editPunchTime('${rowId}','in','${driver.kfi_id}',${rowIdx})" title="Double-click to edit">
+            ${fmt(r.clock_in)}${flagHTML}
+            <span class="edit-hint">✎</span>
+          </td>
+          <td class="editable-time" ondblclick="editPunchTime('${rowId}','out','${driver.kfi_id}',${rowIdx})" title="Double-click to edit">
+            ${fmt(r.clock_out)}
+            <span class="edit-hint">✎</span>
+          </td>
+          <td class="num" id="punch-hrs-${rowId}">${h(r.hours)}</td>
+          <td>
+            <div class="bar-wrap">
+              <div class="bar"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+              <div class="bar-num">${h(running)}</div>
+            </div>
+          </td>
+          <td class="num ${r.source === 'Customer' ? 'cust-val' : 'driver-val'}">${r.source}</td>
+        </tr>`;
+    });
+
+    if (!rowsHTML) rowsHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem;">No punch data for this week</td></tr>`;
+
+    // Build alerts summary
+    const allFlags = allRows.flatMap(r => (r._flags || []).map(f => ({ ...f, date: r.date, source: r.source })));
+    const alertsHTML = allFlags.length > 0 ? `
+      <div id="punch-alerts-${driver.kfi_id}" style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:1rem;margin-bottom:1.2rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:#dc2626;font-size:0.85rem;">⚠ ${allFlags.length} Punch Issue${allFlags.length > 1 ? 's' : ''} Detected</div>
+          <button onclick="document.getElementById('punch-alerts-${driver.kfi_id}').style.display='none'" 
+            style="font-size:0.65rem;padding:3px 10px;border:1px solid #fecaca;background:#fff;color:#dc2626;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;">
+            Dismiss
+          </button>
+        </div>
+        ${allFlags.map(f => `<div style="font-size:0.7rem;color:#7f1d1d;margin-bottom:3px;">
+          <span style="color:${flagColors[f.type]}">●</span> ${f.date} (${f.source}): ${f.msg}
+        </div>`).join('')}
+      </div>` : '';
+
+    const page = document.createElement('div');
+    page.className = 'page driver-page';
+    page.id = pid;
+    page.innerHTML = `
+      <div class="driver-header">
+        <div class="driver-name">${driver.name}</div>
+        <div class="driver-meta">Customer: ${driver.customer} &nbsp;·&nbsp; KFI ID: ${driver.kfi_id}</div>
+      </div>
+      ${alertsHTML}
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Driver (ConnectTeam)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div>Customer (Timesheet)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>Overtime threshold</div>
+      </div>
+      <div class="summary-boxes">
+        <div class="sbox"><div class="sbox-label">Driver Hours</div><div class="sbox-value v-accent">${h(driver.totalDriver)}</div></div>
+        <div class="sbox"><div class="sbox-label">Customer Hours</div><div class="sbox-value v-teal">${h(driver.totalCustomer)}</div></div>
+        <div class="sbox"><div class="sbox-label">Total Hours</div><div class="sbox-value">${h(driver.total)}</div></div>
+        <div class="sbox"><div class="sbox-label">Regular (RT)</div><div class="sbox-value v-green">${h(driver.rt)}</div></div>
+        <div class="sbox"><div class="sbox-label">Overtime (OT)</div><div class="sbox-value v-orange">${h(driver.ot)}</div></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Source</th>
+              <th>Clock In</th>
+              <th>Clock Out</th>
+              <th class="num">Hours</th>
+              <th>Running Total</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
+      </div>
+
+      <div class="summary-checks-grid">
+        <div class="sum-card">
+          <div class="sum-card-hdr green">Summary</div>
+          <table>
+            <thead><tr><th class="green-hdr">Item</th><th class="green-hdr selectable" onclick="selectColumn(this)" title="Click to select RT, OT, Driver RT, Driver OT">Total ▼</th></tr></thead>
+            <tbody>
+              <tr><td>Total Driver</td><td class="val v-accent no-select">${h(driver.totalDriver)}</td></tr>
+              <tr><td>Total Customer</td><td class="val v-teal no-select">${h(driver.totalCustomer)}</td></tr>
+              <tr><td>RT</td><td class="val v-green copyable">${h(driver.rt)}</td></tr>
+              <tr><td>OT</td><td class="val v-orange copyable">${h(driver.ot)}</td></tr>
+              <tr><td>Driver RT</td><td class="val copyable">${h(Math.min(driver.totalDriver, Math.max(0, OT_THRESHOLD - driver.totalCustomer)))}</td></tr>
+              <tr><td>Driver OT</td><td class="val copyable">${h(Math.max(0, driver.totalDriver - Math.max(0, OT_THRESHOLD - driver.totalCustomer)))}</td></tr>
+            </tbody>
+          </table>
+          <div class="copy-hint">↑ Click "Total ▼" to copy RT, OT, Driver RT, Driver OT</div>
+        </div>
+        <div class="sum-card">
+          <div class="sum-card-hdr blue">Checks</div>
+          <table>
+            <thead><tr><th class="blue-hdr">Check</th><th class="blue-hdr selectable" onclick="selectColumn(this)" title="Click to select all values">Total ▼</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Check Total (Driver + Customer)</td>
+                <td class="val ${Math.abs((driver.totalDriver + driver.totalCustomer) - driver.total) < 0.01 ? 'check-ok' : 'check-warn'}">${h(driver.totalDriver + driver.totalCustomer)} ✓</td>
+              </tr>
+              <tr>
+                <td>Check Customer</td>
+                <td class="val">${h(driver.totalCustomer)}</td>
+              </tr>
+              <tr>
+                <td>Check Driver</td>
+                <td class="val">${h(driver.totalDriver)}</td>
+              </tr>
+              <tr>
+                <td>Check RT (max 40)</td>
+                <td class="val ${driver.rt <= 40 ? 'check-ok' : 'check-warn'}">${h(driver.rt)} ${driver.rt <= 40 ? '✓' : '⚠'}</td>
+              </tr>
+              <tr>
+                <td>Check OT (Total − 40)</td>
+                <td class="val ${driver.ot >= 0 ? 'check-ok' : 'check-warn'}">${h(driver.ot)} ${driver.ot >= 0 ? '✓' : '⚠'}</td>
+              </tr>
+              <tr>
+                <td>RT + OT = Total</td>
+                <td class="val ${Math.abs((driver.rt + driver.ot) - driver.total) < 0.01 ? 'check-ok' : 'check-warn'}">${Math.abs((driver.rt + driver.ot) - driver.total) < 0.01 ? '✓ Match' : '⚠ Mismatch'}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="copy-hint">↑ Click "Total ▼" to select all · Ctrl+C to copy</div>
+        </div>
+      </div>
+    `;
+    main.appendChild(page);
+  });
+}
+
+// ── MANUAL ENTRY ─────────────────────────────────────────────────
+function showManualPanel() {
+  const sel = document.getElementById('manual-driver');
+  sel.innerHTML = '<option value="">— Select Driver —</option>';
+  const drivers = Object.values(STATE.drivers)
+    .filter(d => STATE.driverPunches[d.kfi_id]?.length > 0)
+    .sort((a, b) => (a.customer || '').localeCompare(b.customer || '') || a.name.localeCompare(b.name));
+  drivers.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.kfi_id;
+    opt.textContent = `${d.name} (${d.customer || 'Unknown'})`;
+    sel.appendChild(opt);
+  });
+
+  // Build day rows from week dates
+  const grid = document.getElementById('manual-days-grid');
+  grid.innerHTML = '';
+  const start = new Date(STATE.startDate + 'T12:00:00');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayName = days[d.getDay()];
+    const label = `${dayName} ${d.getMonth()+1}/${d.getDate()}`;
+
+    grid.innerHTML += `
+      <div class="manual-day-row" id="manual-row-${dateStr}" style="display:grid;grid-template-columns:90px 1fr 1fr 60px;gap:0.5rem;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:0.72rem;font-weight:600;color:var(--text);">${label}</div>
+        <div>
+          <label style="font-size:0.58rem;color:var(--muted);display:block;margin-bottom:3px;">CLOCK IN</label>
+          <input type="time" id="manual-in-${dateStr}"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:0.75rem;padding:6px 8px;border-radius:6px;outline:none;"
+            onchange="calcManualHours('${dateStr}')">
+        </div>
+        <div>
+          <label style="font-size:0.58rem;color:var(--muted);display:block;margin-bottom:3px;">CLOCK OUT</label>
+          <input type="time" id="manual-out-${dateStr}"
+            style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:0.75rem;padding:6px 8px;border-radius:6px;outline:none;"
+            onchange="calcManualHours('${dateStr}')">
+        </div>
+        <div style="text-align:right;">
+          <label style="font-size:0.58rem;color:var(--muted);display:block;margin-bottom:3px;">HRS</label>
+          <div id="manual-hrs-${dateStr}" style="font-size:0.8rem;font-weight:600;color:var(--accent);min-height:1.5rem;">—</div>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('manual-panel').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function calcManualHours(dateStr) {
+  const inVal = document.getElementById(`manual-in-${dateStr}`)?.value;
+  const outVal = document.getElementById(`manual-out-${dateStr}`)?.value;
+  const display = document.getElementById(`manual-hrs-${dateStr}`);
+  if (!inVal || !outVal || !display) return;
+
+  let ci = new Date(`${dateStr}T${inVal}`);
+  let co = new Date(`${dateStr}T${outVal}`);
+  // Overnight — clock out next day
+  if (co <= ci) co.setDate(co.getDate() + 1);
+  const hrs = Math.round((co - ci) / 36000) / 100;
+  display.textContent = hrs > 0 ? hrs.toFixed(2) : '—';
+  display.style.color = hrs > 0 ? 'var(--accent)' : 'var(--muted)';
+}
+
+function hideManualPanel() {
+  document.getElementById('manual-panel').style.display = 'none';
+  document.getElementById('manual-status').textContent = '';
+}
+
+function submitManualEntry() {
+  const kfiId = document.getElementById('manual-driver').value;
+  const customer = document.getElementById('manual-customer').value.trim();
+  if (!kfiId) { document.getElementById('manual-status').textContent = 'Please select a driver.'; return; }
+  if (!customer) { document.getElementById('manual-status').textContent = 'Please enter a customer name.'; return; }
+
+  const start = new Date(STATE.startDate + 'T12:00:00');
+  const newPunches = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const inVal = document.getElementById(`manual-in-${dateStr}`)?.value;
+    const outVal = document.getElementById(`manual-out-${dateStr}`)?.value;
+    if (!inVal || !outVal) continue;
+
+    let ci = new Date(`${dateStr}T${inVal}`);
+    let co = new Date(`${dateStr}T${outVal}`);
+    if (co <= ci) co.setDate(co.getDate() + 1);
+    const hours = Math.round((co - ci) / 36000) / 100;
+    if (hours <= 0) continue;
+
+    // Format as "YYYY-MM-DD H:MM AM/PM"
+    const fmtManual = (dt) => {
+      const h = dt.getHours();
+      const m = String(dt.getMinutes()).padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${dt.toISOString().slice(0,10)} ${h12}:${m} ${ampm}`;
+    };
+
+    newPunches.push({
+      kfi_id: kfiId, customer,
+      date: dateStr,
+      clock_in: fmtManual(ci),
+      clock_out: fmtManual(co),
+      hours, pay_type: 'Reg', source: 'Customer'
+    });
+  }
+
+  if (newPunches.length === 0) {
+    document.getElementById('manual-status').textContent = 'No times entered — nothing to add.';
+    return;
+  }
+
+  STATE.manualPunches = STATE.manualPunches.filter(p => !(p.kfi_id === kfiId && p.customer === customer));
+  STATE.manualPunches.push(...newPunches);
+  // Also keep in custPunches for dashboard display (merged view)
+  STATE.custPunches = STATE.custPunches.filter(p => !(p.kfi_id === kfiId && p.customer === customer));
+  STATE.custPunches.push(...newPunches);
+  buildDashboard();
+  saveState();
+
+  const total = newPunches.reduce((s, p) => s + p.hours, 0);
+  document.getElementById('manual-status').textContent = `✓ Added ${newPunches.length} day(s) / ${total.toFixed(2)} hrs for ${customer}`;
+  setTimeout(hideManualPanel, 1500);
+}
+// ── DOWNLOAD REPORT ───────────────────────────────────────────────
+function downloadReport() {
+  // Show all pages temporarily for printing
+  const pages = document.querySelectorAll('.page');
+  const prevDisplay = [];
+  pages.forEach((p, i) => {
+    prevDisplay[i] = p.style.display;
+    p.style.display = 'block';
+  });
+
+  // Set print title
+  const prevTitle = document.title;
+  document.title = `KFI Driver OT Report — ${STATE.startDate} to ${STATE.endDate}`;
+
+  window.print();
+
+  // Restore
+  setTimeout(() => {
+    pages.forEach((p, i) => p.style.display = prevDisplay[i]);
+    document.title = prevTitle;
+  }, 1000);
+}
+function toDatetimeLocal(dtStr) {
+  if (!dtStr) return '';
+  const m = dtStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d+):(\d+)\s*([AP]M)$/i);
+  if (m) {
+    let hh = parseInt(m[2]);
+    if (m[4].toUpperCase() === 'PM' && hh !== 12) hh += 12;
+    if (m[4].toUpperCase() === 'AM' && hh === 12) hh = 0;
+    return `${m[1]}T${String(hh).padStart(2,'0')}:${m[3]}`;
+  }
+  try { const d = new Date(dtStr); if (!isNaN(d)) return d.toISOString().slice(0,16); } catch(e) {}
+  return '';
+}
+
+function dtToStr(dtLocal) {
+  const d = new Date(dtLocal);
+  if (isNaN(d)) return '';
+  const hh = d.getHours();
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  const ampm = hh >= 12 ? 'PM' : 'AM';
+  const h12 = hh % 12 || 12;
+  return `${d.toISOString().slice(0,10)} ${h12}:${mm} ${ampm}`;
+}
+
+function editPunchTime(rowId, field, kfiId, rowIdx) {
+  const td = document.querySelector(`#punch-row-${rowId} td:nth-child(${field === 'in' ? 3 : 4})`);
+  if (!td) return;
+
+  const allSorted = [
+    ...(STATE.driverPunches[kfiId] || []).map(r => ({ ...r, _src: 'driver' })),
+    ...STATE.custPunches.filter(r => r.kfi_id === kfiId).map(r => ({ ...r, _src: 'cust' }))
+  ].sort((a, b) => {
+    const ts = r => { const s = r.clock_in; if (!s||s===r.date) return new Date(r.date).getTime(); let d=new Date(s); if(!isNaN(d)) return d.getTime(); d=new Date(s.replace(/(\d{4}-\d{2}-\d{2})\s+/,'$1T')); return isNaN(d)?new Date(r.date).getTime():d.getTime(); };
+    return ts(a) - ts(b);
+  });
+
+  const punch = allSorted[rowIdx];
+  if (!punch) return;
+
+  const currentVal = field === 'in' ? punch.clock_in : punch.clock_out;
+  const originalHTML = td.innerHTML;
+
+  td.innerHTML = `
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <input class="time-edit-input" type="datetime-local" id="tei-${rowId}-${field}" value="${toDatetimeLocal(currentVal)}">
+      <button onclick="savePunchEdit('${rowId}','${field}','${kfiId}',${rowIdx})"
+        style="font-size:0.62rem;padding:3px 8px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;">
+        Save
+      </button>
+      <button id="cancel-${rowId}-${field}"
+        style="font-size:0.62rem;padding:3px 8px;background:var(--surface2);color:var(--muted);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-family:'DM Mono',monospace;">
+        Cancel
+      </button>
+    </div>`;
+
+  // Store original HTML on the td as a data attribute for cancel
+  td.dataset.original = originalHTML;
+  document.getElementById(`cancel-${rowId}-${field}`)?.addEventListener('click', () => {
+    td.innerHTML = td.dataset.original;
+  });
+
+  const input = document.getElementById(`tei-${rowId}-${field}`);
+  if (input) {
+    input.focus();
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); savePunchEdit(rowId, field, kfiId, rowIdx); }
+      if (e.key === 'Escape') { td.innerHTML = td.dataset.original; }
+    });
+  }
+}
+
+function cancelPunchEdit(rowId, field, originalHTML) {
+  const td = document.querySelector(`#punch-row-${rowId} td:nth-child(${field === 'in' ? 3 : 4})`);
+  if (td) td.innerHTML = originalHTML;
+}
+
+function applyEditedPunches() {
+  // Apply any stored edits back onto driverPunches and custPunches after refresh
+  Object.entries(STATE.editedPunches).forEach(([key, edit]) => {
+    const [kfiId, date, origIn, src] = key.split('|');
+    if (src === 'driver') {
+      const dp = STATE.driverPunches[kfiId];
+      if (dp) {
+        const match = dp.find(p => p.date === date && p.clock_in === origIn);
+        if (match) { match.clock_in = edit.clock_in; match.clock_out = edit.clock_out; }
+      }
+    } else {
+      const cp = STATE.custPunches.find(p => p.kfi_id === kfiId && p.date === date && p.clock_in === origIn);
+      if (cp) { cp.clock_in = edit.clock_in; cp.clock_out = edit.clock_out; }
+    }
+  });
+}
+
+function savePunchEdit(rowId, field, kfiId, rowIdx) {
+  const input = document.getElementById(`tei-${rowId}-${field}`);
+  if (!input?.value) return;
+  const newStr = dtToStr(input.value);
+  if (!newStr) return;
+
+  const allSorted = [
+    ...(STATE.driverPunches[kfiId] || []).map(r => ({ ...r, _src: 'driver' })),
+    ...STATE.custPunches.filter(r => r.kfi_id === kfiId).map(r => ({ ...r, _src: 'cust' }))
+  ].sort((a, b) => {
+    const ts = r => { const s = r.clock_in; if (!s||s===r.date) return new Date(r.date).getTime(); let d=new Date(s); if(!isNaN(d)) return d.getTime(); d=new Date(s.replace(/(\d{4}-\d{2}-\d{2})\s+/,'$1T')); return isNaN(d)?new Date(r.date).getTime():d.getTime(); };
+    return ts(a) - ts(b);
+  });
+
+  const punch = allSorted[rowIdx];
+  if (!punch) return;
+
+  const origClockIn = punch.clock_in;
+
+  if (punch._src === 'driver') {
+    const dp = STATE.driverPunches[kfiId];
+    if (dp) {
+      const match = dp.find(p => p.date===punch.date && p.clock_in===punch.clock_in && p.clock_out===punch.clock_out);
+      if (match) {
+        if (field==='in') match.clock_in=newStr; else match.clock_out=newStr;
+        const editKey = `${kfiId}|${punch.date}|${origClockIn}|driver`;
+        STATE.editedPunches[editKey] = { clock_in: match.clock_in, clock_out: match.clock_out };
+      }
+    }
+  } else {
+    const cp = STATE.custPunches.find(p => p.kfi_id===kfiId && p.date===punch.date && p.clock_in===punch.clock_in && p.clock_out===punch.clock_out);
+    if (cp) {
+      if (field==='in') cp.clock_in=newStr; else cp.clock_out=newStr;
+      const editKey = `${kfiId}|${punch.date}|${origClockIn}|cust`;
+      STATE.editedPunches[editKey] = { clock_in: cp.clock_in, clock_out: cp.clock_out };
+    }
+  }
+  saveState();
+  buildDashboard();
+  showDriver(kfiId);
+}
+
+function selectColumn(headerTh) {
+  document.querySelectorAll('.val.selected').forEach(el => el.classList.remove('selected'));
+
+  const table = headerTh.closest('table');
+  const colIndex = headerTh.cellIndex;
+  const vals = [];
+  table.querySelectorAll('tbody tr').forEach(row => {
+    const cell = row.cells[colIndex];
+    if (cell && cell.classList.contains('copyable')) {
+      cell.classList.add('selected');
+      const raw = cell.textContent.trim().replace(/[✓⚠✗]/g, '').trim();
+      const num = raw.match(/[\d.]+/);
+      if (num) vals.push(num[0]);
+    }
+  });
+
+  const text = vals.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    headerTh.textContent = 'Copied ✓';
+    setTimeout(() => headerTh.textContent = 'Total ▼', 1500);
+  }).catch(() => {});
+}
+document.getElementById('main-nav').addEventListener('click', e => {
+  const btn = e.target.closest('.nav-btn');
+  if (!btn) return;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const page = document.getElementById(btn.dataset.page);
+  if (page) page.classList.add('active');
+});
+
+function showDriverPage(pid, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const page = document.getElementById(pid);
+  if (page) page.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function showDriver(kfiId) {
+  const pid = 'page-driver-' + kfiId;
+  const btn = document.querySelector(`#sidebar-list [data-page="${pid}"]`);
+  showDriverPage(pid, btn);
+}
+
+function resetDashboard() {
+  try { localStorage.removeItem(STATE_KEY); } catch(e) {}
+  STATE = { apiKey: '', startDate: '', endDate: '', drivers: {}, driverPunches: {}, custPunches: [], manualPunches: [], editedPunches: {}, reviewedDrivers: new Set(), mapping: {}, files: [] };
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('launch-btn').disabled = false;
+  document.getElementById('file-chips').innerHTML = '';
+  document.getElementById('upload-status').textContent = '';
+  setStatus('');
+}
+</script>
+</body>
+</html>
